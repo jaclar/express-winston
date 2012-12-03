@@ -53,22 +53,32 @@ function filterRequest(originalReq, initialFilter) {
 //
 function errorLogger(options) {
   if(!options) throw new Error("options are required by express-winston middleware");
-  if(!options.transports || !(options.transports.length > 0)) throw new Error("transports are required by express-winston middleware");
+  if(!options.winston && (!options.transports || !(options.transports.length > 0))) throw new Error("transports are required by express-winston middleware");
   options.requestFilter = options.requestFilter || defaultRequestFilter;
   return function(err, req, res, next) {
-    // let winston gather all the error data.
-    var exceptionMeta = winston.exception.getAllInfo(err);
-    exceptionMeta.req = filterRequest(req, options.requestFilter);
+    var exceptionMeta;
+    if (options.transports) {
+      // let winston gather all the error data.
+      exceptionMeta = winston.exception.getAllInfo(err);
+      exceptionMeta.req = filterRequest(req, options.requestFilter);
 
-    function logOnTransport(transport, nextTransport) {
-      return transport.logException('middlewareError', exceptionMeta, nextTransport);
-    };
+      function logOnTransport(transport, nextTransport) {
+        return transport.logException('middlewareError', exceptionMeta, nextTransport);
+      };
 
-    function done() {
-      return next(err);
-    };
-    // iterate all the transports
-    async.forEach(options.transports, logOnTransport, done);
+      function done() {
+        return next(err);
+      };
+      // iterate all the transports
+      async.forEach(options.transports, logOnTransport, done);
+    }
+    else {
+      exceptionMeta = options.winston.exception.getAllInfo(err);
+      exceptionMeta.req = filterRequest(req, options.requestFilter);
+
+      options.winston.log('error','middlewareError', exceptionMeta);
+      next(err);
+    }
   };
 };
 
