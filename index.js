@@ -1,15 +1,15 @@
 // Copyright (c) 2012 Firebase.co and Contributors - http://www.firebase.co
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
@@ -47,7 +47,7 @@ function filterRequest(originalReq, initialFilter) {
   return req;
 };
 
-// 
+//
 // ### function errorLogger(options)
 // #### @options {Object} options to initialize the middleware.
 //
@@ -72,13 +72,13 @@ function errorLogger(options) {
   };
 };
 
-// 
+//
 // ### function logger(options)
 // #### @options {Object} options to initialize the middleware.
 //
 function logger(options) {
   if(!options) throw new Error("options are required by express-winston middleware");
-  if(!options.transports || !(options.transports.length > 0)) throw new Error("transports are required by express-winston middleware");
+  if(!options.winston && (!options.transports || !(options.transports.length > 0))) throw new Error("transports or winston instance are required by express-winston middleware");
   options.requestFilter = options.requestFilter || defaultRequestFilter;
   options.level = options.level || "info";
   return function(req, res, next) {
@@ -87,15 +87,20 @@ function logger(options) {
     };
     var msg = util.format("HTTP %s %s", req.method, req.url);
 
-    function logOnTransport(transport, nextTransport) {
-      return transport.log(options.level, msg, meta, nextTransport);
-    };
+    if (options.transports) {
+      function logOnTransport(transport, nextTransport) {
+        return transport.log(options.level, msg, meta, nextTransport);
+      };
 
-    function done() {
-      return next();
-    };
-    // iterate all the transports
-    async.forEach(options.transports, logOnTransport, done);
+      function done() {
+        return next();
+      };
+      // iterate all the transports
+      async.forEach(options.transports, logOnTransport, done);
+    } else {
+        options.winston.log(options.level, msg, meta);
+        next();
+    }
   };
 };
 
